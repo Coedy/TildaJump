@@ -1,6 +1,7 @@
 import app
 import random
 import json
+import math
 from events.input import Buttons, BUTTON_TYPES
 from tildagonos import tildagonos
 from system.eventbus import eventbus
@@ -16,6 +17,8 @@ class TildaJump(app.App):
         self.twinkle_led = 1
         self.twinkle_led2 = 2
         self.twinkle_brightness = 0.0
+        self.led_anim_state = 'blue'   # blue -> fade_blue -> fade_white -> twinkle
+        self.led_anim_timer = 0.0
         self.high_score = self._load_high_score()
         self.last_score = 0
         eventbus.emit(PatternDisable())
@@ -50,6 +53,8 @@ class TildaJump(app.App):
 
         self.score = 0
         self.world_scroll = 0.0
+        self.led_anim_state = 'blue'
+        self.led_anim_timer = 0.0
         self.moon_y = -180.0
         self.moon_scrolling = False
         self.planets = self._generate_planets()
@@ -102,7 +107,9 @@ class TildaJump(app.App):
             (0.5, 0.1, 0.2),
         ]
         styles = ['stripes', 'spots', 'rings', 'stripes', 'spots', 'rings']
-        random.shuffle(styles)
+        for i in range(len(styles) - 1, 0, -1):
+            j = random.randint(0, i)
+            styles[i], styles[j] = styles[j], styles[i]
         trigger = 900
         for i in range(6):
             r   = random.uniform(min_r, max_r)
@@ -125,7 +132,6 @@ class TildaJump(app.App):
                         'r':  random.uniform(r * 0.08, r * 0.18),
                     })
             elif style == 'rings':
-                import math
                 angle = random.uniform(0.3, 0.7)
                 details = {'radii': [r * 1.4, r * 1.75], 'angle': angle}
             planets.append({
@@ -318,24 +324,52 @@ class TildaJump(app.App):
                 tildagonos.leds.write()
                 return
 
-            if self.score < 400:
+            # Trigger the space animation once at score 400
+            if self.score >= 400 and self.led_anim_state == 'blue':
+                self.led_anim_state = 'fade_blue'
+                self.led_anim_timer = 0.0
+
+            self.led_anim_timer += delta
+
+            if self.led_anim_state == 'blue':
+                # Full blue fading to 10% blue over the climb (score-driven)
                 fade = max(0.0, min(1.0, 1.0 - self.score / 400.0))
-                g = max(0, min(255, int(115 * fade)))
-                b = max(0, min(255, int(191 * fade)))
-                if g < 4 and b < 4:
-                    for i in range(1, 13):
-                        tildagonos.leds[i] = (0, 0, 0)
-                else:
-                    for i in range(1, 13):
-                        tildagonos.leds[i] = (0, g, b)
-            else:
+                g = max(0, min(255, int(11 + 104 * fade)))
+                b = max(0, min(255, int(25 + 166 * fade)))
+                for i in range(1, 13):
+                    tildagonos.leds[i] = (0, g, b)
+
+            elif self.led_anim_state == 'fade_blue':
+                # 3 seconds: fade from 10% blue to off
+                t = min(1.0, self.led_anim_timer / 1700.0)
+                g = max(0, int(11 * (1.0 - t)))
+                b = max(0, int(25 * (1.0 - t)))
+                for i in range(1, 13):
+                    tildagonos.leds[i] = (0, g, b)
+                if t >= 1.0:
+                    self.led_anim_state = 'fade_white'
+                    self.led_anim_timer = 0.0
+
+            elif self.led_anim_state == 'fade_white':
+                # 3 seconds: fade from off to 10% white (25, 25, 25)
+                t = min(1.0, self.led_anim_timer / 1700.0)
+                v = max(0, int(25 * t))
+                for i in range(1, 13):
+                    tildagonos.leds[i] = (v, v, v)
+                if t >= 1.0:
+                    self.led_anim_state = 'twinkle'
+                    self.led_anim_timer = 0.0
+                    self.twinkle_brightness = 0.0
+                    self.twinkle_timer = 0.0
+
+            elif self.led_anim_state == 'twinkle':
                 base = 6
                 for i in range(1, 13):
                     tildagonos.leds[i] = (base, base, base)
 
                 self.twinkle_timer -= delta
                 if self.twinkle_timer <= 0:
-                    self.twinkle_timer = random.uniform(1500.0, 3000.0)
+                    self.twinkle_timer = random.uniform(1500.0, 1700.0)
                     self.twinkle_led = random.randint(1, 12)
                     self.twinkle_led2 = random.randint(1, 11)
                     if self.twinkle_led2 >= self.twinkle_led:
@@ -343,10 +377,8 @@ class TildaJump(app.App):
                     self.twinkle_brightness = 0.0
 
                 self.twinkle_brightness = min(1.0, self.twinkle_brightness + 0.001 * delta)
-
                 v1 = max(base, min(255, int(25 + 230 * self.twinkle_brightness)))
                 v2 = max(base, min(127, int(25 + 102 * self.twinkle_brightness)))
-
                 tildagonos.leds[self.twinkle_led]  = (v1, v1, v1)
                 tildagonos.leds[self.twinkle_led2] = (v2, v2, v2)
 
@@ -453,7 +485,6 @@ class TildaJump(app.App):
                     chord = (pr * pr - dy * dy)
                     if chord < 0:
                         continue
-                    import math
                     hw = math.sqrt(chord)
                     ctx.save()
                     ctx.rgba(dr, dg, db, op * 0.7)
@@ -471,7 +502,6 @@ class TildaJump(app.App):
                     ctx.restore()
 
             elif pl['style'] == 'rings':
-                import math
                 angle = pl['details']['angle']
                 for ring_r in pl['details']['radii']:
                     ring_thickness = pr * 0.15
