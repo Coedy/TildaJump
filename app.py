@@ -60,7 +60,7 @@ class TildaJump(app.App):
         self.planets = self._generate_planets()
         self.clouds = []
         self.stars = []
-        for _ in range(3):
+        for _ in range(2):
             self._spawn_cloud()
 
         self.platforms = []
@@ -88,7 +88,7 @@ class TildaJump(app.App):
         })
         y = self.robot_y
         spacing = 80.0 if TEST_MODE else None
-        for _ in range(12):
+        for _ in range(8):
             y -= spacing if TEST_MODE else random.uniform(40.0, 80.0)
             self.platforms.append(self.make_platform(y))
 
@@ -145,11 +145,12 @@ class TildaJump(app.App):
 
     def _spawn_cloud(self):
         circles = []
-        for _ in range(random.randint(4, 6)):
+        for _ in range(random.randint(2, 3)):
             circles.append({
-                'dx': random.uniform(-18.0, 18.0),
-                'dy': random.uniform(-6.0,   6.0),
-                'r':  random.uniform(10.0,  16.0),
+                'dx': random.uniform(-20.0, 20.0),
+                'dy': random.uniform(-4.0,   4.0),
+                'r':  random.uniform(12.0,  20.0),
+                'sx': random.uniform(1.6,   2.4),  # horizontal stretch
             })
         vx = random.uniform(-0.05, 0.05)
         if abs(vx) < 0.015:
@@ -254,7 +255,7 @@ class TildaJump(app.App):
             top_y = min(p['y'] for p in self.platforms)
         else:
             top_y = self.robot_y
-        while len(self.platforms) < 14:
+        while len(self.platforms) < 10:
             spacing = random.uniform(40.0, 80.0)
             top_y -= spacing
             self.platforms.append(self.make_platform(top_y))
@@ -293,7 +294,7 @@ class TildaJump(app.App):
                 if c['opacity'] < target_opacity:
                     c['opacity'] = min(target_opacity, c['opacity'] + 0.0002 * delta)
             self.clouds = [c for c in self.clouds if c['y'] < 140.0]
-            if self.score >= 250 and len(self.clouds) < 5:
+            if self.score >= 250 and len(self.clouds) < 3:
                 self._spawn_cloud()
         elif self.score >= 400:
             for c in self.clouds:
@@ -311,7 +312,7 @@ class TildaJump(app.App):
                 if s['opacity'] < desired:
                     s['opacity'] = min(desired, s['opacity'] + 0.0003 * delta)
             self.stars = [s for s in self.stars if s['y'] < 140.0]
-            if len(self.stars) < 40:
+            if len(self.stars) < 20:
                 self._spawn_star()
 
         self._update_leds(delta)
@@ -566,11 +567,14 @@ class TildaJump(app.App):
                     cx = c['x'] + circle['dx']
                     cy = c['y'] + circle['dy']
                     r  = circle['r']
+                    sx = circle['sx']
                     ctx.save()
                     ctx.rgba(1.0, 1.0, 1.0, c['opacity'])
+                    ctx.translate(cx, cy)
+                    ctx.scale(sx, 1.0)
                     ctx.begin_path()
-                    ctx.move_to(cx + r, cy)
-                    ctx.arc(cx, cy, r, 0, 6.2832, 0)
+                    ctx.move_to(r, 0)
+                    ctx.arc(0, 0, r, 0, 6.2832, 0)
                     ctx.fill()
                     ctx.restore()
 
