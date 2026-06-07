@@ -464,7 +464,7 @@ class TildaJump(app.App):
         for s in self.stars:
             if s['opacity'] > 0:
                 ctx.rgba(1.0, 1.0, 1.0, s['opacity'])
-                ctx.rectangle(s['x'], s['y'], 1.5, 1.5).fill()
+                ctx.rectangle(s['x'], s['y'], 1.0, 2.0).fill()
 
         for pl in self.planets:
             if not pl['scrolling'] or pl['done']:
@@ -578,68 +578,7 @@ class TildaJump(app.App):
                     ctx.save()
                     ctx.rgba(1.0, 1.0, 1.0, c['opacity'])
                     ctx.translate(cx, cy)
-                    ctx.scale(sx, 1.0)import app
-import random
-import json
-import math
-from events.input import Buttons, BUTTON_TYPES
-from tildagonos import tildagonos
-from system.eventbus import eventbus
-from system.patterndisplay.events import PatternDisable, PatternEnable
-
-TEST_MODE = False
-
-class TildaJump(app.App):
-    def __init__(self):
-        self.button_states = Buttons(self)
-        self.state = 'title'
-        self.twinkle_timer = 0.0
-        self.twinkle_led = 1
-        self.twinkle_led2 = 2
-        self.twinkle_brightness = 0.0
-        self.led_anim_state = 'blue'   # blue -> fade_blue -> fade_white -> twinkle
-        self.led_anim_timer = 0.0
-        self.high_score = self._load_high_score()
-        self.last_score = 0
-        eventbus.emit(PatternDisable())
-
-    def _load_high_score(self):
-        try:
-            with open('tildajump_save.json', 'r') as f:
-                data = json.load(f)
-                return data.get('high_score', 0)
-        except Exception:
-            return 0
-
-    def _save_high_score(self, score):
-        try:
-            with open('tildajump_save.json', 'w') as f:
-                json.dump({'high_score': score}, f)
-        except Exception:
-            pass
-
-    def reset_game(self):
-        self.robot_radius = 12.0
-        self.robot_speed = 0.25
-
-        self.robot_x = 0.0
-        self.robot_target_x = 0.0
-        self.robot_vx = 0.0
-        self.robot_y = 60.0 + self.robot_radius * 2
-        self.robot_vy = 0.0
-
-        self.gravity = 0.0003
-        self.jump_velocity = -0.55
-
-        self.score = 0
-        self.world_scroll = 0.0
-        self.led_anim_state = 'blue'
-        self.led_anim_timer = 0.0
-        self.moon_y = -180.0
-        self.moon_scrolling = False
-        self.planets = self._generate_planets()
-        self.clouds = []
-
+                    ctx.scale(sx, 1.0)
                     ctx.begin_path()
                     ctx.move_to(r, 0)
                     ctx.arc(0, 0, r, 0, 6.2832, 0)
